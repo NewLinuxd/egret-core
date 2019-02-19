@@ -92,6 +92,18 @@ namespace egret {
                 return;
             }
             self.$smoothing = value;
+            if (!egret.nativeRender) {
+                let p = self.$parent;
+                if (p && !p.$cacheDirty) {
+                    p.$cacheDirty = true;
+                    p.$cacheDirtyUp();
+                }
+                let maskedObject = self.$maskedObject;
+                if (maskedObject && !maskedObject.$cacheDirty) {
+                    maskedObject.$cacheDirty = true;
+                    maskedObject.$cacheDirtyUp();
+                }
+            }
         }
 
         private $text: string = "";
@@ -390,6 +402,11 @@ namespace egret {
             let textLines: string[] = this.$getTextLines();
             let length: number = textLines.length;
             if (length == 0) {
+                if (egret.nativeRender && self.$font) {
+                    self.$nativeDisplayObject.setDataToBitmapNode(self.$nativeDisplayObject.id, self.$font.$texture, []);
+                    self.$nativeDisplayObject.setWidth(0);
+                    self.$nativeDisplayObject.setHeight(0);
+                }
                 return;
             }
             let drawArr = [];
@@ -629,15 +646,15 @@ namespace egret {
                         offsetY = texture.$offsetY;
                     }
 
-                    if (isFirstChar) {
-                        isFirstChar = false;
-                        textOffsetX = Math.min(offsetX, textOffsetX);
-                    }
+                    // if (isFirstChar) {
+                    //     isFirstChar = false;
+                    //     textOffsetX = Math.min(offsetX, textOffsetX);
+                    // }
 
-                    if (isFirstLine) {
-                        isFirstLine = false;
-                        textOffsetY = Math.min(offsetY, textOffsetY);
-                    }
+                    // if (isFirstLine) {
+                    //     isFirstLine = false;
+                    //     textOffsetY = Math.min(offsetY, textOffsetY);
+                    // }
                     if (hasWidthSet && j > 0 && xPos + texureWidth > textFieldWidth) {
                         if (!setLineData(line.substring(0, j)))
                             break;

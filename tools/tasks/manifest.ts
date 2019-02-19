@@ -5,7 +5,7 @@ import { Plugin, File } from './index';
 const manifest = {
     initial: [],
     game: [],
-// configURL: ""
+    // configURL: ""
 }
 
 
@@ -48,6 +48,7 @@ export class ManifestPlugin {
                 new_file_path = "js/" + basename.substr(0, basename.length - file.extname.length) + file.extname;
 
             }
+            file.outputDir = "";
             file.path = path.join(file.base, new_file_path);
 
             const relative = file.relative.split("\\").join('/');
@@ -58,7 +59,6 @@ export class ManifestPlugin {
             else {
                 manifest.game.push(relative);
             }
-
             if (this.options.verbose) {
                 this.verboseInfo.push({ filename, new_file_path })
             }
@@ -74,7 +74,7 @@ export class ManifestPlugin {
                 contents = JSON.stringify(manifest, null, '\t');
                 break;
             case ".js":
-                contents = manifest.initial.concat(manifest.game).map((fileName) => `require("${fileName}")`).join("\n")
+                contents = manifest.initial.concat(manifest.game).map((fileName) => `require("./${fileName}")`).join("\n")
                 break;
         }
         pluginContext.createFile(this.options.output, new Buffer(contents));

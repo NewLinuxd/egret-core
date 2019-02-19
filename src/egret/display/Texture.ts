@@ -73,12 +73,6 @@ namespace egret {
         }
 
         /**
-         * @private
-         * 纹理id
-         */
-        public $textureId: number;
-
-        /**
          * Whether to destroy the corresponding BitmapData when the texture is destroyed
          * @version Egret 5.0.8
          * @platform Web,Native
@@ -303,8 +297,8 @@ namespace egret {
          * 获取指定像素区域的颜色值
          * @param x  像素区域的X轴坐标
          * @param y  像素区域的Y轴坐标
-         * @param width  像素点的Y轴坐标
-         * @param height  像素点的Y轴坐标
+         * @param width  像素区域的宽度
+         * @param height  像素区域的高度
          * @returns  指定像素区域的颜色值
          * @version Egret 3.2.1
          * @platform Web
@@ -378,9 +372,6 @@ namespace egret {
                     this.$bitmapData.$dispose();
                 }
                 this.$bitmapData = null;
-            }
-            if(egret.nativeRender) {
-                egret_native.NativeDisplayObject.disposeTexture(this);
             }
         }
     }

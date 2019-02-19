@@ -8,6 +8,34 @@ var __extends = this && this.__extends || function __extends(t, e) {
     for (var i in e) e.hasOwnProperty(i) && (t[i] = e[i]);
     r.prototype = e.prototype, t.prototype = new r();
 };
+
+declare let window;
+declare let generateEUI2;
+declare namespace egret {
+    function getDefinitionByName(name: string): any;
+    export class Rectangle {
+        constructor(a, b, c, d);
+    }
+}
+declare namespace eui {
+    export class SetProperty {
+        constructor(a, b, c);
+    }
+    export class SetStateProperty {
+        constructor(a, b, c, d, e);
+    }
+    export class Binding {
+        static $bindProperties(a, b, c, d, e);
+        static bindProperty(a, b, c, d)
+    }
+    export class State {
+        constructor(a, b);
+    }
+    export class AddItems {
+        constructor(a, b, c, d);
+    }
+
+}
 class JSONParseClass {
     private json;
     private skinClass = {};
@@ -50,8 +78,15 @@ class JSONParseClass {
 
 
     setData(data: any) {
-        this.json = data;
-        this.parseSkinMap(this.json);
+        if (!this.json) {
+            this.json = data;
+            this.parseSkinMap(this.json);
+        } else {
+            this.parseSkinMap(data);
+            for (let a in data) {
+                this.json[a] = data[a];
+            }
+        }
     }
     private generateSkinClass(skinData: any, className: string, superName: string): any {
         if (!skinData) return null;
@@ -361,8 +396,8 @@ class JSONParseClass {
         }
         return result;
     }
-    private getNormalizeEuiName(str: string):string {
-        return this.euiNormalizeNames[str] ?  this.euiNormalizeNames[str]:str;
+    private getNormalizeEuiName(str: string): string {
+        return this.euiNormalizeNames[str] ? this.euiNormalizeNames[str] : str;
     }
     private createTypeObject(component: string) {
         const typestr = this.getNormalizeEuiName(this.skinClass[component].$t);

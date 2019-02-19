@@ -1333,11 +1333,6 @@ declare namespace egret {
          */
         constructor();
         /**
-         * @private
-         * 纹理id
-         */
-        $textureId: number;
-        /**
          * Whether to destroy the corresponding BitmapData when the texture is destroyed
          * @version Egret 5.0.8
          * @platform Web,Native
@@ -1498,8 +1493,8 @@ declare namespace egret {
          * 获取指定像素区域的颜色值
          * @param x  像素区域的X轴坐标
          * @param y  像素区域的Y轴坐标
-         * @param width  像素点的Y轴坐标
-         * @param height  像素点的Y轴坐标
+         * @param width  像素区域的宽度
+         * @param height  像素区域的高度
          * @returns  指定像素区域的颜色值
          * @version Egret 3.2.1
          * @platform Web
@@ -3615,6 +3610,8 @@ declare namespace egret_native {
     function nrGlobalToLocal(id: number, globalX: number, globalY: number): string;
     function nrGetTextFieldWidth(id: number): number;
     function nrGetTextFieldHeight(id: number): number;
+    function nrGetTextWidth(id: number): number;
+    function nrGetTextHeight(id: number): number;
     function nrResize(width: number, height: number): void;
     function nrSetCanvasScaleFactor(factor: number, scalex: number, scaley: number): void;
     function nrUpdate(): void;
@@ -3623,6 +3620,8 @@ declare namespace egret_native {
     function nrUpdateCallbackList(dt: number): void;
     function nrActiveBuffer(id: number, width: number, height: number): void;
     function nrGetPixels(x: number, y: number, width: number, height: number, pixels: Uint8Array): void;
+    function nrGetCustomImageId(type: number): number;
+    function nrSetCustomImageData(customImageId: number, pvrtcData: any, width: any, height: any, mipmapsCount: any, format: any): void;
     class NrNode {
         constructor(id: number, type: number);
     }
@@ -3656,6 +3655,13 @@ declare namespace egret_native {
     /**
      * @private
      */
+    class NativeBitmapData {
+        $init(): any;
+        $id: any;
+    }
+    /**
+     * @private
+     */
     class NativeDisplayObject {
         id: number;
         constructor(type: number);
@@ -3680,11 +3686,10 @@ declare namespace egret_native {
         static createFilter(filter: egret.Filter): void;
         static setFilterPadding(filterId: number, paddingTop: number, paddingBottom: number, paddingLeft: number, paddingRight: number): void;
         setMask(value: number): void;
-        setBitmapData(value: egret.Texture): void;
-        setBitmapDataToMesh(value: egret.Texture): void;
-        setBitmapDataToParticle(value: egret.Texture): void;
-        setStopToParticle(value: boolean): void;
-        setCustomData(config: any): void;
+        static setSourceToNativeBitmapData(nativeBitmapData: egret_native.NativeBitmapData, source: any): any;
+        setTexture(texture: egret.Texture): void;
+        setBitmapDataToMesh(texture: egret.Texture): void;
+        setBitmapDataToParticle(texture: egret.Texture): void;
         setWidth(value: number): void;
         setHeight(value: number): void;
         setCacheAsBitmap(value: boolean): void;
@@ -3695,8 +3700,7 @@ declare namespace egret_native {
         setDataToBitmapNode(id: number, texture: egret.Texture, arr: number[]): void;
         setDataToMesh(vertexArr: number[], indiceArr: number[], uvArr: number[]): void;
         static setDataToFilter(currFilter: egret.Filter): void;
-        static disposeTexture(texture: egret.Texture): void;
-        static disposeBitmapData(bitmapData: egret.BitmapData): void;
+        static disposeNativeBitmapData(nativeBitmapData: egret_native.NativeBitmapData): void;
         static disposeTextData(node: egret.TextField): void;
         static disposeGraphicData(graphic: egret.Graphics): void;
         setFontSize(value: number): void;
@@ -5416,7 +5420,7 @@ declare namespace egret {
          * @private
          * @language zh_CN
          */
-        source: any;
+        $source: any;
         /**
          * WebGL texture.
          * @version Egret 2.4
@@ -5454,7 +5458,7 @@ declare namespace egret {
          * @private
          * id
          */
-        $bitmapDataId: number;
+        $nativeBitmapData: egret_native.NativeBitmapData;
         /**
          * Initializes a BitmapData object to refer to the specified source object.
          * @param source The source object being referenced.
@@ -5470,6 +5474,7 @@ declare namespace egret {
          * @language zh_CN
          */
         constructor(source: any);
+        source: any;
         static create(type: "arraybuffer", data: ArrayBuffer, callback?: (bitmapData: BitmapData) => void): BitmapData;
         static create(type: "base64", data: string, callback?: (bitmapData: BitmapData) => void): BitmapData;
         $dispose(): void;
@@ -8789,6 +8794,7 @@ declare namespace egret {
         contentWidth?: number;
         contentHeight?: number;
         orientation?: string;
+        maxTouches?: number;
     };
     /**
      * egret project entry function
@@ -10454,6 +10460,32 @@ declare namespace egret {
          * @language zh_CN
          */
         const WXGAME = "wxgame";
+        /**
+         * Running on Baidu mini game
+         * @version Egret 5.2.13
+         * @platform All
+         * @language en_US
+         */
+        /**
+         * 运行在百度小游戏上
+         * @version Egret 5.2.13
+         * @platform All
+         * @language zh_CN
+         */
+        const BAIDUGAME = "baidugame";
+        /**
+         * Running on Xiaomi quick game
+         * @version Egret 5.2.14
+         * @platform All
+         * @language en_US
+         */
+        /**
+         * 运行在小米快游戏上
+         * @version Egret 5.2.14
+         * @platform All
+         * @language zh_CN
+         */
+        const QGAME = "qgame";
     }
     /**
      * The Capabilities class provides properties that describe the system and runtime that are hosting the application.
@@ -13321,14 +13353,14 @@ declare namespace egret {
         readShort(): number;
         /**
          * Read unsigned bytes from the byte stream.
-         * @return A 32-bit unsigned integer ranging from 0 to 255
+         * @return A unsigned integer ranging from 0 to 255
          * @version Egret 2.4
          * @platform Web,Native
          * @language en_US
          */
         /**
          * 从字节流中读取无符号的字节
-         * @return 介于 0 和 255 之间的 32 位无符号整数
+         * @return 介于 0 和 255 之间的无符号整数
          * @version Egret 2.4
          * @platform Web,Native
          * @language zh_CN

@@ -67,6 +67,7 @@ var ManifestPlugin = /** @class */ (function () {
                     else {
                         new_file_path = "js/" + basename.substr(0, basename.length - file.extname.length) + file.extname;
                     }
+                    file.outputDir = "";
                     file.path = path.join(file.base, new_file_path);
                     relative = file.relative.split("\\").join('/');
                     if (file.origin.indexOf('libs/') >= 0) {
@@ -95,7 +96,7 @@ var ManifestPlugin = /** @class */ (function () {
                         contents = JSON.stringify(manifest, null, '\t');
                         break;
                     case ".js":
-                        contents = manifest.initial.concat(manifest.game).map(function (fileName) { return "require(\"" + fileName + "\")"; }).join("\n");
+                        contents = manifest.initial.concat(manifest.game).map(function (fileName) { return "require(\"./" + fileName + "\")"; }).join("\n");
                         break;
                 }
                 pluginContext.createFile(this.options.output, new Buffer(contents));

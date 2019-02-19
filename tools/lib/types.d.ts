@@ -6,7 +6,7 @@ declare module egret {
 
     export namespace target {
 
-        export type Type = "web" | "native" | "wxgame" | 'bricks' | 'ios' | 'android' | "any" | "none"
+        export type Type = "web" | "native" | "wxgame" | "baidugame" | 'bricks' | 'ios' | 'android' | "any" | "none"
 
         export interface Info {
             name: Type;
@@ -117,11 +117,6 @@ declare module egret {
         },
         "wasm"?: {
 
-        },
-        "eui"?: {
-            "exmlRoot"?: string | string[];
-            "themes"?: string[];
-            "exmlPublishPolicy"?: string;
         },
         "native"?: {
             "path_ignore"?: string[];

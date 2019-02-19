@@ -48,7 +48,6 @@ var Build = require("./build");
 var Server = require("../server/server");
 var FileUtil = require("../lib/FileUtil");
 var service = require("../service/index");
-var project_1 = require("../project");
 var os = require("os");
 var Run = /** @class */ (function () {
     function Run() {
@@ -56,14 +55,13 @@ var Run = /** @class */ (function () {
     }
     Run.prototype.execute = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var exitCode, target, toolsList, _a, port;
+            var exitCode, target, _a, port;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0: return [4 /*yield*/, new Build().execute()];
                     case 1:
                         exitCode = _b.sent();
                         target = egret.args.target;
-                        toolsList = project_1.launcher.getLauncherLibrary().getInstalledTools();
                         _a = target;
                         switch (_a) {
                             case "web": return [3 /*break*/, 2];
@@ -125,18 +123,9 @@ var Run = /** @class */ (function () {
                 .on("removed", function (f) { return _this.sendBuildCMD(f, "removed"); })
                 .on("changed", function (f) { return _this.sendBuildCMD(f, "modified"); });
         });
-        /*//监听build文件夹的变化
-        watch.createMonitor(path.join(egret.root,'build'), { persistent: true, interval: 2007, filter: function (f, stat) {
-            return true;
-        } }, function (m) {
-            m.on("created", (f) => this.shutDown(f, "added"))
-                .on("removed", (f) => this.shutDown(f, "removed"))
-                .on("changed", (f) => this.shutDown(f, "modified"));
-        });*/
         watch.createMonitor(path.dirname(dir), {
             persistent: true, interval: 2007, filter: function (f, stat) {
-                if (path.basename(f) == "egretProperties.json") {
-                    _this.initVersion = _this.getVersion(f);
+                if (path.basename(f) == "egretProperties.json" || path.basename(f) == "tsconfig.json") {
                     return true;
                 }
                 else {
@@ -150,24 +139,12 @@ var Run = /** @class */ (function () {
         });
     };
     Run.prototype.shutDown = function (file, type) {
-        file = FileUtil.escapePath(file);
-        var isShutdown = false;
-        if (path.basename(file) == 'egretProperties.json') {
-            var nowVersion = this.getVersion(file);
-            if (this.initVersion != nowVersion) {
-                isShutdown = true;
-            }
-        }
-        else {
-            isShutdown = true;
-        }
-        if (isShutdown) {
-            service.client.execCommand({
-                path: egret.args.projectDir,
-                command: "shutdown",
-                option: egret.args
-            }, function () { return process.exit(0); }, true);
-        }
+        globals.log(10022, file);
+        service.client.execCommand({
+            path: egret.args.projectDir,
+            command: "shutdown",
+            option: egret.args
+        }, function () { return process.exit(0); }, true);
     };
     Run.prototype.sendBuildCMD = function (file, type) {
         file = FileUtil.escapePath(file);
@@ -181,11 +158,6 @@ var Run = /** @class */ (function () {
                 cmd.messages.forEach(function (m) { return console.log(m); });
             }
         });
-    };
-    Run.prototype.getVersion = function (filePath) {
-        var jsstr = FileUtil.read(filePath);
-        var js = JSON.parse(jsstr);
-        return js["egret_version"];
     };
     Run.prototype.wrapByParams = function (url) {
         return url + this.genParams();

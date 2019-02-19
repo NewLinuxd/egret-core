@@ -8,39 +8,20 @@ import * as exml from '../lib/eui/EXML';
 import * as EgretProject from '../project';
 import exmlParser = require("../lib/eui/EXMLParser");
 import jsonParser = require("../lib/eui/JSONParser");
+export let isOneByOne: boolean;
 
-function generateThemeData() {
-    //1.找到项目内后缀名为'.thm.json'的主题文件并返回列表
-    const themeFilenames = searchTheme();
-    //2.将主题文件读入内存变成json对象
-    const themeDatas = themeFilenames.map(filename => {
-        const content = file.read(file.joinPath(egret.args.projectDir, filename))
-        const data: egret.EgretEUIThemeConfig = JSON.parse(content);
-        data.path = filename;
-        return data;
-    });
-    return themeDatas;
-}
-
-export function publishEXML(exmls: exml.EXMLFile[], exmlPublishPolicy: string) {
-    if (!exmlPublishPolicy || exmlPublishPolicy == "default") {
-        exmlPublishPolicy = EgretProject.projectData.getExmlPublishPolicy();
-    }
-    else if (exmlPublishPolicy == 'debug') {
+export function publishEXML(exmls: exml.EXMLFile[], exmlPublishPolicy: string, themeDatas: egret.EgretEUIThemeConfig[]) {
+    if (exmlPublishPolicy == 'debug') {
         exmlPublishPolicy = 'path';
     }
-    const themeDatas = generateThemeData();
 
     var oldEXMLS: EXMLFile[] = [];
-    //3.对于autoGenerateExmlsList属性的支持
+    //3.将所有的exml信息取出来
     themeDatas.forEach((theme) => {
         if (!theme.exmls || theme.autoGenerateExmlsList) {
             theme.exmls = [];
             for (let exml of exmls) {
                 theme.exmls.push(exml.filename);
-            }
-            if (theme.autoGenerateExmlsList) {
-                file.save(Path.join(egret.args.projectDir, theme.path), JSON.stringify(theme, null, '\t'));
             }
         }
     })
@@ -63,19 +44,48 @@ export function publishEXML(exmls: exml.EXMLFile[], exmlPublishPolicy: string) {
             paths.push(path);
         });
     });
-
     //5.获得排序后的所有exml文件列表
     exmls = exml.sort(exmls);
     //6.对exml文件列表进行筛选
     let screenExmls = []
+    let versionExmlHash = {};
     for (let exml of exmls) {
         for (let path of paths) {
-            if (path === exml.filename) {
+            // if (path === exml.filename) {
+            //     screenExmls.push(exml);
+            // }
+            if (path.indexOf(exml.filename) > -1) {
                 screenExmls.push(exml);
+                versionExmlHash[exml.filename] = path;
+                versionExmlHash[path] = exml.filename;
             }
         }
     }
 
+    /**
+     * 因为底下发布策略是修改thm.json的元数据， 最后将写道thm.js中，gjs模式还会改变这个文件的格式
+     * 在这里直接对做完排序的文件进行autoGenerateExmlsList属性的支持
+     * todo：json应该直接维护好自己的，下面的发布最好改成新开辟一块空间做，而不是混在一起，虽然在commonjs或是gjs等模式下thm.json 已经不用了，但是这个文件很难做版本控制
+     */
+    //7.对于autoGenerateExmlsList属性的支持，是否将新的信息写回
+    themeDatas.forEach(theme => theme.exmls = []);
+    screenExmls.forEach(e => {
+        exmlParser.fileSystem.set(e.filename, e);
+        var epath = versionExmlHash[e.filename];
+        themeDatas.forEach((thm) => {
+            if (epath in oldEXMLS) {
+                const exmlFile = oldEXMLS[epath];
+                if (exmlFile.theme.indexOf("," + thm.path + ",") >= 0) {
+                    thm.exmls.push(epath);
+                }
+            }
+        });
+    })
+    themeDatas.map((thmData) => {
+        if (thmData.autoGenerateExmlsList) {
+            file.save(Path.join(egret.args.projectDir, thmData.path), JSON.stringify(thmData, null, '\t'));
+        }
+    })
     themeDatas.forEach(theme => theme.exmls = []);
     screenExmls.forEach(e => {
         exmlParser.fileSystem.set(e.filename, e);
@@ -102,8 +112,15 @@ export function publishEXML(exmls: exml.EXMLFile[], exmlPublishPolicy: string) {
             //todo
             case "commonjs2":
                 var parser2 = new jsonParser.JSONParser();
+                isOneByOne = false;
                 let result2 = parser2.parse(e.contents, e.filename);
                 exmlEl = { path: e.filename, className: result2.className };
+                break;
+            case "json":
+                var parser3 = new jsonParser.JSONParser();
+                isOneByOne = true;
+                let result3 = parser3.parse(e.contents, e.filename);
+                exmlEl = { path: e.filename, json: result3.json, className: result3.className };
                 break;
             //todo
             case "bin":
@@ -112,14 +129,9 @@ export function publishEXML(exmls: exml.EXMLFile[], exmlPublishPolicy: string) {
                 exmlEl = { path: e.filename, content: e.contents };
                 break;
         }
-        if (exmlEl.className) {
-            let className = exmlEl.className.split(".")[exmlEl.className.split(".").length - 1];
-            if (exmlEl.path.indexOf(className) < 0)
-                console.log(utils.tr(2104, exmlEl.path, exmlEl.className));
-        }
         themeDatas.forEach((thm) => {
-            if (epath in oldEXMLS) {
-                const exmlFile = oldEXMLS[epath];
+            if (versionExmlHash[epath] in oldEXMLS) {
+                const exmlFile = oldEXMLS[versionExmlHash[epath]];
                 if (exmlFile.theme.indexOf("," + thm.path + ",") >= 0)
                     thm.exmls.push(exmlEl);
             }
@@ -127,7 +139,6 @@ export function publishEXML(exmls: exml.EXMLFile[], exmlPublishPolicy: string) {
     });
     let files = themeDatas.map((thmData) => {
         let path = thmData.path;
-
         if (exmlPublishPolicy == "commonjs") {
             let content = `
                 function __extends(d, b) {
@@ -163,7 +174,11 @@ export function publishEXML(exmls: exml.EXMLFile[], exmlPublishPolicy: string) {
             path = path.replace("thm.json", "thm.js");
             return { path, content }
         }
-        else if (exmlPublishPolicy == "commonjs2") {
+        else if (exmlPublishPolicy == "commonjs2" || exmlPublishPolicy == "json") {
+            if (jsonParser.isError) {
+                //已经存在错误了终止
+                global.globals.exit()
+            }
             let jsonParserStr = file.read(Path.join(egret.root, "tools/lib/eui/JsonParserFactory.js"));
             let content = `${jsonParserStr}`
             content +=
@@ -172,43 +187,40 @@ generateEUI2.paths = {};
 generateEUI2.styles = ${JSON.stringify(thmData.styles)};
 generateEUI2.skins = ${JSON.stringify(thmData.skins)};`;
             path = path.replace("thm.json", "thm.js");
+            if (exmlPublishPolicy == "json") {
+                content = content.replace(/generateEUI2/g, "generateJSON")
+            }
             return { path, content }
         }
         else {
             return { path, content: JSON.stringify(thmData, null, '\t') }
         }
     });
-    let EuiJson = jsonParser.euiJson;
-    if (EuiJson == "")
-        EuiJson = "{}"
-    return { "files": files, "EuiJson": EuiJson };
-
-}
-
-function searchTheme() {
-    let result = EgretProject.projectData.getThemes();
-    if (result) {
-        return result;
-    }
-    var files = file.searchByFunction(egret.args.projectDir, themeFilter);
-    files = files.map(it => file.getRelativePath(egret.args.projectDir, it));
-    return files;
-}
-
-const ignorePath = EgretProject.projectData.getIgnorePath();
-function exmlFilter(f: string) {
-    var isIgnore = false;
-    ignorePath.forEach(path => {
-        if (f.indexOf(path) != -1) {
-            isIgnore = true;
+    if (exmlPublishPolicy == "commonjs2") {
+        let EuiJson: { path: string, json: string }[] = [];
+        let json = jsonParser.eui.toCode();
+        if (json == "") {
+            json = "{}"
         }
-    });
-    return /\.exml$/.test(f) && (f.indexOf(egret.args.releaseRootDir) < 0) && !isIgnore;
-}
-function themeFilter(f: string) {
-    return (f.indexOf('.thm.json') > 0) && (f.indexOf(egret.args.releaseRootDir) < 0);
-}
+        EuiJson.push({ path: "resource/gameEui.json", json: json });
+        return { "files": files, "EuiJson": EuiJson };
+    } else if (exmlPublishPolicy == "json") {
+        let EuiJson: { path: string, json: string }[] = [];
+        for (let theme of themeDatas) {
+            for (let json of theme.exmls) {
+                let dirPath = json.path.replace(".exml", "_EUI.json");
+                let dataJson = json.json;
+                let data = { path: dirPath, json: dataJson }
+                EuiJson.push(data);
+            }
+        }
+        return { "files": files, "EuiJson": EuiJson };
+    }
+    else {
+        return { "files": files };
+    }
 
+}
 export interface SettingData {
     name: string;
     themes: { [name: string]: string | ThemeData };
